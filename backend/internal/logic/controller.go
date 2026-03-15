@@ -20,6 +20,7 @@ type Controller interface {
 	CheckHealth(ctx context.Context, arg CheckArg) (CheckRes, error)
 	UpdateHealthStatus(ctx context.Context, arg UpdateHealthStatusArg) (UpdateHealthStatusRes, error)
 	GetRepositories(ctx context.Context, arg GetRepositoriesArg) (GetRepositoriesRes, error)
+	GetRepository(ctx context.Context, arg GetRepositoryArg) (GetRepositoryRes, error)
 	AnalyzeRepository(ctx context.Context, arg AnalyzeRepositoryArg) (AnalyzeRepositoryRes, error)
 	AnalyzeCommit(ctx context.Context, arg AnalyzeCommitArg) (AnalyzeCommitRes, error)
 	ExchangeOAuthCode(ctx context.Context, arg ExchangeOAuthCodeArg) (ExchangeOAuthCodeRes, error)
@@ -33,6 +34,17 @@ type GetRepositoriesArg struct {
 // @PublicValueInstance
 type GetRepositoriesRes struct {
 	Repositories []Repository
+}
+
+// @PublicValueInstance
+type GetRepositoryArg struct {
+	RepositoryID int
+	Token        string
+}
+
+// @PublicValueInstance
+type GetRepositoryRes struct {
+	Repository Repository
 }
 
 // @PublicValueInstance
