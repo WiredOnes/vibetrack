@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/WiredOnes/vibetrack/backend/internal/db"
@@ -55,7 +56,7 @@ type AnalyzeKeyChange struct {
 
 // @PublicValueInstance
 type AnalyzeCommitArg struct {
-	RepositoryID string
+	RepositoryID int
 	CommitSHA    string
 	Token        string
 }
@@ -245,7 +246,7 @@ func (c *controller) AnalyzeRepository(ctx context.Context, arg AnalyzeRepositor
 		return AnalyzeRepositoryRes{}, err
 	}
 
-	analysis, err := parseAnalysisResponse(resp)
+	analysis, err := parseRepositoryAnalysisResponse(resp)
 	if err != nil {
 		c.Logger.Error(ctx, "failed to parse AI response", telemetry.Error(err))
 		return AnalyzeRepositoryRes{}, model.NewInternalError()
@@ -278,7 +279,7 @@ func (c *controller) AnalyzeCommit(ctx context.Context, arg AnalyzeCommitArg) (A
 		return AnalyzeCommitRes{}, err
 	}
 
-	analysis, err := parseAnalysisResponse(resp)
+	analysis, err := parseCommitAnalysisResponse(resp)
 	if err != nil {
 		c.Logger.Error(ctx, "failed to parse AI response", telemetry.Error(err))
 		return AnalyzeCommitRes{}, model.NewInternalError()
@@ -289,7 +290,9 @@ func (c *controller) AnalyzeCommit(ctx context.Context, arg AnalyzeCommitArg) (A
 
 // @PublicValueInstance
 type ExchangeOAuthCodeArg struct {
-	Code string
+	Code         string
+	ClientID     string
+	ClientSecret string
 }
 
 // @PublicValueInstance
@@ -363,4 +366,217 @@ func (c *controller) ExchangeOAuthCode(ctx context.Context, arg ExchangeOAuthCod
 
 	c.Logger.Info(ctx, "successfully exchanged OAuth code for access token")
 	return ExchangeOAuthCodeRes{Token: data.AccessToken}, nil
+}
+
+func (c *controller) getRepoFullNameAndBranch(ctx context.Context, repoID int, token string) (string, string, error) {
+	c.Logger.Debug(ctx, "fetching repository metadata", telemetry.Any("repo_id", repoID))
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	url := fmt.Sprintf("https://api.github.com/repositories/%d", repoID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		c.Logger.Error(ctx, "failed to create HTTP request for GitHub repository metadata", telemetry.Error(err))
+		return "", "", model.NewInternalError()
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/vnd.github+json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		c.Logger.Error(ctx, "failed to call GitHub API for repository metadata", telemetry.Error(err))
+		return "", "", model.NewInternalError()
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		c.Logger.Warn(ctx, "GitHub API returned unauthorized/forbidden when fetching repository metadata", telemetry.Any("status_code", resp.StatusCode))
+		return "", "", model.NewUnauthenticatedError()
+	}
+	if resp.StatusCode >= 400 {
+		c.Logger.Error(ctx, "GitHub API returned error when fetching repository metadata", telemetry.Any("status_code", resp.StatusCode))
+		return "", "", model.NewInternalError()
+	}
+
+	var repo struct {
+		FullName      string `json:"full_name"`
+		DefaultBranch string `json:"default_branch"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&repo); err != nil {
+		c.Logger.Error(ctx, "failed to decode GitHub repository metadata response", telemetry.Error(err))
+		return "", "", model.NewInternalError()
+	}
+
+	return repo.FullName, repo.DefaultBranch, nil
+}
+
+func (c *controller) getRepoTree(ctx context.Context, fullName, branch, token string) (string, error) {
+	c.Logger.Debug(ctx, "fetching repository tree", telemetry.Any("repo", fullName), telemetry.Any("branch", branch))
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	url := fmt.Sprintf("https://api.github.com/repos/%s/git/trees/%s?recursive=1", fullName, branch)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		c.Logger.Error(ctx, "failed to create HTTP request for GitHub tree", telemetry.Error(err))
+		return "", model.NewInternalError()
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/vnd.github+json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		c.Logger.Error(ctx, "failed to call GitHub API for tree", telemetry.Error(err))
+		return "", model.NewInternalError()
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		c.Logger.Warn(ctx, "GitHub API returned unauthorized/forbidden when fetching tree", telemetry.Any("status_code", resp.StatusCode))
+		return "", model.NewUnauthenticatedError()
+	}
+	if resp.StatusCode >= 400 {
+		c.Logger.Error(ctx, "GitHub API returned error when fetching tree", telemetry.Any("status_code", resp.StatusCode))
+		return "", model.NewInternalError()
+	}
+
+	var treeResp struct {
+		Tree []struct {
+			Path string `json:"path"`
+			Type string `json:"type"`
+		} `json:"tree"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&treeResp); err != nil {
+		c.Logger.Error(ctx, "failed to decode GitHub tree response", telemetry.Error(err))
+		return "", model.NewInternalError()
+	}
+
+	var b strings.Builder
+	for _, item := range treeResp.Tree {
+		b.WriteString(item.Path)
+		b.WriteString("\n")
+	}
+
+	return b.String(), nil
+}
+
+func (c *controller) getCommitDiff(ctx context.Context, fullName, sha, token string) (string, error) {
+	c.Logger.Debug(ctx, "fetching commit diff", telemetry.Any("repo", fullName), telemetry.Any("commit", sha))
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	url := fmt.Sprintf("https://api.github.com/repos/%s/commits/%s", fullName, sha)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		c.Logger.Error(ctx, "failed to create HTTP request for GitHub commit", telemetry.Error(err))
+		return "", model.NewInternalError()
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/vnd.github+json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		c.Logger.Error(ctx, "failed to call GitHub API for commit", telemetry.Error(err))
+		return "", model.NewInternalError()
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		c.Logger.Warn(ctx, "GitHub API returned unauthorized/forbidden when fetching commit", telemetry.Any("status_code", resp.StatusCode))
+		return "", model.NewUnauthenticatedError()
+	}
+	if resp.StatusCode >= 400 {
+		c.Logger.Error(ctx, "GitHub API returned error when fetching commit", telemetry.Any("status_code", resp.StatusCode))
+		return "", model.NewInternalError()
+	}
+
+	var commitResp struct {
+		Files []struct {
+			Filename string `json:"filename"`
+			Patch    string `json:"patch"`
+		} `json:"files"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&commitResp); err != nil {
+		c.Logger.Error(ctx, "failed to decode GitHub commit response", telemetry.Error(err))
+		return "", model.NewInternalError()
+	}
+
+	var b strings.Builder
+	for _, f := range commitResp.Files {
+		b.WriteString("FILE: ")
+		b.WriteString(f.Filename)
+		b.WriteString("\n")
+		b.WriteString(f.Patch)
+		b.WriteString("\n\n")
+	}
+
+	return b.String(), nil
+}
+
+func (c *controller) requestAI(ctx context.Context, promptContent string) (string, error) {
+	c.Logger.Debug(ctx, "requesting AI analysis")
+
+	env := c.environmentHolder.Environment()
+	client := NewGigaChatClient(env.GigaChatClientID, env.GigaChatClientSecret)
+	resp, err := client.SendChatRequest(ctx, []Message{{Role: "user", Content: promptContent}})
+	if err != nil {
+		c.Logger.Error(ctx, "failed to request AI service", telemetry.Error(err))
+		return "", model.NewInternalError()
+	}
+
+	if len(resp.Choices) == 0 {
+		c.Logger.Error(ctx, "AI service returned empty response")
+		return "", model.NewInternalError()
+	}
+
+	return resp.Choices[0].Message.Content, nil
+}
+
+func parseRepositoryAnalysisResponse(resp string) (AnalyzeRepositoryRes, error) {
+	result, err := parseAIResponse(resp)
+	if err != nil {
+		return AnalyzeRepositoryRes{}, err
+	}
+	return result, nil
+}
+
+func parseCommitAnalysisResponse(resp string) (AnalyzeCommitRes, error) {
+	result, err := parseAIResponse(resp)
+	if err != nil {
+		return AnalyzeCommitRes{}, err
+	}
+	return AnalyzeCommitRes(result), nil
+}
+
+func parseAIResponse(resp string) (AnalyzeRepositoryRes, error) {
+	trimmed := strings.TrimSpace(resp)
+	start := strings.Index(trimmed, "{")
+	end := strings.LastIndex(trimmed, "}")
+	if start == -1 || end == -1 || start >= end {
+		return AnalyzeRepositoryRes{}, fmt.Errorf("failed to locate JSON object in AI response")
+	}
+
+	jsonPart := trimmed[start : end+1]
+
+	type rawAnalysis struct {
+		Summary      string   `json:"summary"`
+		FilesChanged []string `json:"files_changed"`
+		KeyChanges   []struct {
+			Type        string `json:"type"`
+			Description string `json:"description"`
+		} `json:"key_changes"`
+	}
+
+	var raw rawAnalysis
+	if err := json.Unmarshal([]byte(jsonPart), &raw); err != nil {
+		return AnalyzeRepositoryRes{}, fmt.Errorf("failed to parse AI response JSON: %w", err)
+	}
+
+	result := AnalyzeRepositoryRes{
+		Summary:      raw.Summary,
+		FilesChanged: raw.FilesChanged,
+	}
+
+	for _, kc := range raw.KeyChanges {
+		result.KeyChanges = append(result.KeyChanges, AnalyzeKeyChange{Type: kc.Type, Description: kc.Description})
+	}
+
+	return result, nil
 }

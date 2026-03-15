@@ -9,11 +9,12 @@ Generated from source file: /home/leshless/vibetrack/backend/internal/logic/cont
 package logic
 
 import (
-	environment "github.com/WiredOnes/vibetrack/backend/internal/environment"
-	state "github.com/WiredOnes/vibetrack/backend/internal/state"
-	db "github.com/WiredOnes/vibetrack/backend/internal/db"
-	model "github.com/WiredOnes/vibetrack/backend/internal/model"
 	time "time"
+
+	db "github.com/WiredOnes/vibetrack/backend/internal/db"
+	environment "github.com/WiredOnes/vibetrack/backend/internal/environment"
+	model "github.com/WiredOnes/vibetrack/backend/internal/model"
+	state "github.com/WiredOnes/vibetrack/backend/internal/state"
 	telemetry "github.com/WiredOnes/vibetrack/backend/internal/telemetry"
 )
 
@@ -39,7 +40,7 @@ func NewAnalyzeRepositoryArg(
 ) AnalyzeRepositoryArg {
 	return AnalyzeRepositoryArg{
 		RepositoryID: repositoryID,
-		Token: token,
+		Token:        token,
 	}
 }
 
@@ -49,9 +50,9 @@ func NewAnalyzeRepositoryRes(
 	keyChanges []AnalyzeKeyChange,
 ) AnalyzeRepositoryRes {
 	return AnalyzeRepositoryRes{
-		Summary: summary,
+		Summary:      summary,
 		FilesChanged: filesChanged,
-		KeyChanges: keyChanges,
+		KeyChanges:   keyChanges,
 	}
 }
 
@@ -60,20 +61,20 @@ func NewAnalyzeKeyChange(
 	description string,
 ) AnalyzeKeyChange {
 	return AnalyzeKeyChange{
-		Type: type_,
+		Type:        type_,
 		Description: description,
 	}
 }
 
 func NewAnalyzeCommitArg(
-	repositoryID string,
+	repositoryID int,
 	commitSHA string,
 	token string,
 ) AnalyzeCommitArg {
 	return AnalyzeCommitArg{
 		RepositoryID: repositoryID,
-		CommitSHA: commitSHA,
-		Token: token,
+		CommitSHA:    commitSHA,
+		Token:        token,
 	}
 }
 
@@ -83,9 +84,9 @@ func NewAnalyzeCommitRes(
 	keyChanges []AnalyzeKeyChange,
 ) AnalyzeCommitRes {
 	return AnalyzeCommitRes{
-		Summary: summary,
+		Summary:      summary,
 		FilesChanged: filesChanged,
-		KeyChanges: keyChanges,
+		KeyChanges:   keyChanges,
 	}
 }
 
@@ -99,13 +100,13 @@ func NewRepository(
 	updatedAt time.Time,
 ) Repository {
 	return Repository{
-		ID: id,
-		Name: name,
-		FullName: fullName,
-		Description: description,
-		Private: private,
+		ID:            id,
+		Name:          name,
+		FullName:      fullName,
+		Description:   description,
+		Private:       private,
 		DefaultBranch: defaultBranch,
-		UpdatedAt: updatedAt,
+		UpdatedAt:     updatedAt,
 	}
 }
 
@@ -116,17 +117,15 @@ func NewController(
 	pingDB db.PingAdapter,
 ) *controller {
 	return &controller{
-		Telemetry: telemetry,
+		Telemetry:         telemetry,
 		environmentHolder: environmentHolder,
-		healthState: healthState,
-		pingDB: pingDB,
+		healthState:       healthState,
+		pingDB:            pingDB,
 	}
 }
 
-func NewCheckArg(
-) CheckArg {
-	return CheckArg{
-	}
+func NewCheckArg() CheckArg {
+	return CheckArg{}
 }
 
 func NewCheckRes(
@@ -137,23 +136,23 @@ func NewCheckRes(
 	}
 }
 
-func NewUpdateHealthStatusArg(
-) UpdateHealthStatusArg {
-	return UpdateHealthStatusArg{
-	}
+func NewUpdateHealthStatusArg() UpdateHealthStatusArg {
+	return UpdateHealthStatusArg{}
 }
 
-func NewUpdateHealthStatusRes(
-) UpdateHealthStatusRes {
-	return UpdateHealthStatusRes{
-	}
+func NewUpdateHealthStatusRes() UpdateHealthStatusRes {
+	return UpdateHealthStatusRes{}
 }
 
 func NewEXCHANGEOAuthCodeArg(
 	code string,
+	clientID string,
+	clientSecret string,
 ) ExchangeOAuthCodeArg {
 	return ExchangeOAuthCodeArg{
-		Code: code,
+		Code:         code,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
 	}
 }
 

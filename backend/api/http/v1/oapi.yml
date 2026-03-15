@@ -280,6 +280,16 @@ paths:
           required: true
           schema:
             type: string
+        - in: query
+          name: client_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: client_secret
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: OAuth token
@@ -329,7 +339,7 @@ paths:
           name: repositoryID
           required: true
           schema:
-            type: string
+            type: integer
         - in: path
           name: commitSHA
           required: true

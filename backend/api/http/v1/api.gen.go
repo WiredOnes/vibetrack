@@ -112,7 +112,9 @@ type Repository struct {
 
 // OAuthCallbackParams defines parameters for OAuthCallback.
 type OAuthCallbackParams struct {
-	Code string `form:"code" json:"code"`
+	Code         string `form:"code" json:"code"`
+	ClientId     string `form:"client_id" json:"client_id"`
+	ClientSecret string `form:"client_secret" json:"client_secret"`
 }
 
 // ServerInterface represents all server handlers.
@@ -134,7 +136,7 @@ type ServerInterface interface {
 	PostRepositoryRepositoryIDAnalyze(w http.ResponseWriter, r *http.Request, repositoryID int)
 	// Получить AI-суммаризацию изменений в коммите
 	// (POST /repository/{repositoryID}/{commitSHA}/analyze)
-	PostRepositoryRepositoryIDCommitSHAAnalyze(w http.ResponseWriter, r *http.Request, repositoryID string, commitSHA string)
+	PostRepositoryRepositoryIDCommitSHAAnalyze(w http.ResponseWriter, r *http.Request, repositoryID int, commitSHA string)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -173,7 +175,7 @@ func (_ Unimplemented) PostRepositoryRepositoryIDAnalyze(w http.ResponseWriter, 
 
 // Получить AI-суммаризацию изменений в коммите
 // (POST /repository/{repositoryID}/{commitSHA}/analyze)
-func (_ Unimplemented) PostRepositoryRepositoryIDCommitSHAAnalyze(w http.ResponseWriter, r *http.Request, repositoryID string, commitSHA string) {
+func (_ Unimplemented) PostRepositoryRepositoryIDCommitSHAAnalyze(w http.ResponseWriter, r *http.Request, repositoryID int, commitSHA string) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -220,6 +222,36 @@ func (siw *ServerInterfaceWrapper) OAuthCallback(w http.ResponseWriter, r *http.
 	err = runtime.BindQueryParameterWithOptions("form", true, true, "code", r.URL.Query(), &params.Code, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "code", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "client_id" -------------
+
+	if paramValue := r.URL.Query().Get("client_id"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "client_id"})
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "client_id", r.URL.Query(), &params.ClientId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "client_id", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "client_secret" -------------
+
+	if paramValue := r.URL.Query().Get("client_secret"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "client_secret"})
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "client_secret", r.URL.Query(), &params.ClientSecret, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "client_secret", Err: err})
 		return
 	}
 
@@ -322,9 +354,9 @@ func (siw *ServerInterfaceWrapper) PostRepositoryRepositoryIDCommitSHAAnalyze(w 
 	var err error
 
 	// ------------- Path parameter "repositoryID" -------------
-	var repositoryID string
+	var repositoryID int
 
-	err = runtime.BindStyledParameterWithOptions("simple", "repositoryID", chi.URLParam(r, "repositoryID"), &repositoryID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	err = runtime.BindStyledParameterWithOptions("simple", "repositoryID", chi.URLParam(r, "repositoryID"), &repositoryID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repositoryID", Err: err})
 		return
@@ -635,7 +667,7 @@ func (response PostRepositoryRepositoryIDAnalyzedefaultJSONResponse) VisitPostRe
 }
 
 type PostRepositoryRepositoryIDCommitSHAAnalyzeRequestObject struct {
-	RepositoryID string `json:"repositoryID"`
+	RepositoryID int    `json:"repositoryID"`
 	CommitSHA    string `json:"commitSHA"`
 }
 
@@ -842,7 +874,7 @@ func (sh *strictHandler) PostRepositoryRepositoryIDAnalyze(w http.ResponseWriter
 }
 
 // PostRepositoryRepositoryIDCommitSHAAnalyze operation middleware
-func (sh *strictHandler) PostRepositoryRepositoryIDCommitSHAAnalyze(w http.ResponseWriter, r *http.Request, repositoryID string, commitSHA string) {
+func (sh *strictHandler) PostRepositoryRepositoryIDCommitSHAAnalyze(w http.ResponseWriter, r *http.Request, repositoryID int, commitSHA string) {
 	var request PostRepositoryRepositoryIDCommitSHAAnalyzeRequestObject
 
 	request.RepositoryID = repositoryID

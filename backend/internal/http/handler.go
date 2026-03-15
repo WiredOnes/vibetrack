@@ -64,22 +64,80 @@ func (h *Handler) GetRepositoriesRepositoryID(ctx context.Context, req api.GetRe
 }
 
 func (h *Handler) PostRepositoryRepositoryIDAnalyze(ctx context.Context, req api.PostRepositoryRepositoryIDAnalyzeRequestObject) (api.PostRepositoryRepositoryIDAnalyzeResponseObject, error) {
-	return api.PostRepositoryRepositoryIDAnalyzedefaultJSONResponse{
-		Body:       errorFromModel(model.NewUnimplementedError()),
-		StatusCode: statusCodeFromModel(model.NewUnimplementedError()),
+	token := bearerTokenFromContext(ctx)
+	if token == "" {
+		return api.PostRepositoryRepositoryIDAnalyzedefaultJSONResponse{
+			Body:       errorFromModel(model.NewUnauthenticatedError()),
+			StatusCode: statusCodeFromModel(model.NewUnauthenticatedError()),
+		}, nil
+	}
+
+	res, err := h.controller.AnalyzeRepository(ctx, logic.AnalyzeRepositoryArg{RepositoryID: req.RepositoryID, Token: token})
+	if err != nil {
+		return api.PostRepositoryRepositoryIDAnalyzedefaultJSONResponse{
+			Body:       errorFromModel(err),
+			StatusCode: statusCodeFromModel(err),
+		}, nil
+	}
+
+	keyChanges := make([]struct {
+		Description *string                            `json:"description,omitempty"`
+		Type        *api.AICommitSummaryKeyChangesType `json:"type,omitempty"`
+	}, len(res.KeyChanges))
+	for i, kc := range res.KeyChanges {
+		desc := kc.Description
+		typeVal := api.AICommitSummaryKeyChangesType(kc.Type)
+		keyChanges[i].Description = &desc
+		keyChanges[i].Type = &typeVal
+	}
+
+	return api.PostRepositoryRepositoryIDAnalyze200JSONResponse{
+		Summary:      res.Summary,
+		FilesChanged: res.FilesChanged,
+		KeyChanges:   keyChanges,
 	}, nil
 }
 
 func (h *Handler) PostRepositoryRepositoryIDCommitSHAAnalyze(ctx context.Context, req api.PostRepositoryRepositoryIDCommitSHAAnalyzeRequestObject) (api.PostRepositoryRepositoryIDCommitSHAAnalyzeResponseObject, error) {
-	return api.PostRepositoryRepositoryIDCommitSHAAnalyzedefaultJSONResponse{
-		Body:       errorFromModel(model.NewUnimplementedError()),
-		StatusCode: statusCodeFromModel(model.NewUnimplementedError()),
+	token := bearerTokenFromContext(ctx)
+	if token == "" {
+		return api.PostRepositoryRepositoryIDCommitSHAAnalyzedefaultJSONResponse{
+			Body:       errorFromModel(model.NewUnauthenticatedError()),
+			StatusCode: statusCodeFromModel(model.NewUnauthenticatedError()),
+		}, nil
+	}
+
+	res, err := h.controller.AnalyzeCommit(ctx, logic.AnalyzeCommitArg{RepositoryID: req.RepositoryID, CommitSHA: req.CommitSHA, Token: token})
+	if err != nil {
+		return api.PostRepositoryRepositoryIDCommitSHAAnalyzedefaultJSONResponse{
+			Body:       errorFromModel(err),
+			StatusCode: statusCodeFromModel(err),
+		}, nil
+	}
+
+	keyChanges := make([]struct {
+		Description *string                            `json:"description,omitempty"`
+		Type        *api.AICommitSummaryKeyChangesType `json:"type,omitempty"`
+	}, len(res.KeyChanges))
+	for i, kc := range res.KeyChanges {
+		desc := kc.Description
+		typeVal := api.AICommitSummaryKeyChangesType(kc.Type)
+		keyChanges[i].Description = &desc
+		keyChanges[i].Type = &typeVal
+	}
+
+	return api.PostRepositoryRepositoryIDCommitSHAAnalyze200JSONResponse{
+		Summary:      res.Summary,
+		FilesChanged: res.FilesChanged,
+		KeyChanges:   keyChanges,
 	}, nil
 }
 
 func (h *Handler) OAuthCallback(ctx context.Context, req api.OAuthCallbackRequestObject) (api.OAuthCallbackResponseObject, error) {
 	res, err := h.controller.ExchangeOAuthCode(ctx, logic.ExchangeOAuthCodeArg{
-		Code: req.Params.Code,
+		Code:         req.Params.Code,
+		ClientID:     req.Params.ClientId,
+		ClientSecret: req.Params.ClientSecret,
 	})
 	if err != nil {
 		return api.OAuthCallbackdefaultJSONResponse{
