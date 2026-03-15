@@ -1,0 +1,50 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ./Dockerfile
+      tags:
+        - backend:latest
+    image: backend:latest
+    restart: no
+    env_file:
+      - ./backend/config/development.env
+    volumes:
+      - "./backend/config/development.yml:/etc/backend/config.yml:ro"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./cert.pem:/etc/ssl/certs/cert.pem:ro
+      - ./key.pem:/etc/ssl/private/key.pem:ro
+    depends_on:
+      - backend
+
+  postgres:
+      image: postgres:16  
+      environment:
+        POSTGRES_DB: db
+        POSTGRES_USER: user
+        POSTGRES_PASSWORD: password
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+        - ./configure_postgres.sh:/docker-entrypoint-initdb.d/configure.sh:ro
+      ports:
+        - "5432:5432"
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U user -d db"]
+        interval: 2s
+        timeout: 3s
+        retries: 5
+      logging:
+        driver: "none"
+
+
+volumes:
+  postgres_data:
