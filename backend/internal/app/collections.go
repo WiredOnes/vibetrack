@@ -8,7 +8,7 @@ import (
 	"github.com/WiredOnes/vibetrack/backend/internal/db"
 	"github.com/WiredOnes/vibetrack/backend/internal/environment"
 	"github.com/WiredOnes/vibetrack/backend/internal/http"
-	"github.com/WiredOnes/vibetrack/backend/internal/logic/health"
+	"github.com/WiredOnes/vibetrack/backend/internal/logic"
 	"github.com/WiredOnes/vibetrack/backend/internal/state"
 	"github.com/WiredOnes/vibetrack/backend/internal/telemetry"
 	"github.com/benbjohnson/clock"
@@ -50,7 +50,7 @@ type Adapters struct {
 
 // @PublicValueInstance
 type Controllers struct {
-	Health health.Controller
+	Controller logic.Controller
 }
 
 // @PublicValueInstance

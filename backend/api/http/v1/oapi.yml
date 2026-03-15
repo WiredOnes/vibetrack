@@ -188,6 +188,15 @@ components:
         - files_changed
         - key_changes
 
+    OAuthTokenResponse:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          example: "gho_1234567890abcdef"
+
 
 paths:
   /health:
@@ -197,6 +206,7 @@ paths:
       summary: Basic service healthcheck
       description: |
       operationId: CheckHealth
+      security: []
       responses:
         "200":
           description: Success
@@ -258,7 +268,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-
+  /oauth/callback:
+    get:
+      summary: GitHub OAuth callback
+      tags: [Auth]
+      operationId: OAuthCallback
+      security: []
+      parameters:
+        - in: query
+          name: code
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OAuth token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthTokenResponse'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /repository/{repositoryID}/analyze:
     post:
       summary: Получить AI-анализ проекта

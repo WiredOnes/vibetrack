@@ -2,14 +2,20 @@ package http
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
-	"github.com/benbjohnson/clock"
 	api "github.com/WiredOnes/vibetrack/backend/api/http/v1"
 	"github.com/WiredOnes/vibetrack/backend/internal/telemetry"
+	"github.com/benbjohnson/clock"
 	"github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 )
+
+type contextKey string
+
+const bearerTokenContextKey contextKey = "bearerToken"
 
 func recoveryMiddleware(tel telemetry.Telemetry) api.StrictMiddlewareFunc {
 	return func(handler nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
@@ -34,6 +40,39 @@ type responseWriter struct {
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.statusCode = code
 	rw.ResponseWriter.WriteHeader(code)
+}
+
+func authMiddleware(tel telemetry.Telemetry) api.StrictMiddlewareFunc {
+	return func(handler nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
+		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, req any) (any, error) {
+			// Allow unauthenticated health check
+			if operationID == "CheckHealth" {
+				return handler(ctx, w, r, req)
+			}
+
+			auth := r.Header.Get("Authorization")
+			if !strings.HasPrefix(auth, "Bearer ") {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				_ = json.NewEncoder(w).Encode(api.Error{Message: "Unauthenticated"})
+				tel.Logger.Info(ctx, "malformed authorization header", telemetry.Any("authorization_header", auth))
+				return nil, nil
+			}
+
+			token := strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
+			if token == "" {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				_ = json.NewEncoder(w).Encode(api.Error{Message: "Unauthenticated"})
+				tel.Logger.Info(ctx, "empty bearer token in authorization header")
+				return nil, nil
+			}
+
+			ctx = context.WithValue(ctx, bearerTokenContextKey, token)
+
+			return handler(ctx, w, r, req)
+		}
+	}
 }
 
 func telemetryMiddleware(tel telemetry.Telemetry, clock clock.Clock) api.StrictMiddlewareFunc {

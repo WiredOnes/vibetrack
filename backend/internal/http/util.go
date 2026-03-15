@@ -1,11 +1,20 @@
 package http
 
 import (
+	"context"
 	"net/http"
 
 	api "github.com/WiredOnes/vibetrack/backend/api/http/v1"
 	"github.com/WiredOnes/vibetrack/backend/internal/model"
 )
+
+func bearerTokenFromContext(ctx context.Context) string {
+	val := ctx.Value(bearerTokenContextKey)
+	if token, ok := val.(string); ok {
+		return token
+	}
+	return ""
+}
 
 var statusFromModel = map[model.ErrorCode]int{
 	model.ErrorCodeOK:                 http.StatusOK,

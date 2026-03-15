@@ -4,7 +4,7 @@ import (
 	"context"
 
 	api "github.com/WiredOnes/vibetrack/backend/api/http/v1"
-	"github.com/WiredOnes/vibetrack/backend/internal/logic/health"
+	"github.com/WiredOnes/vibetrack/backend/internal/logic"
 	"github.com/WiredOnes/vibetrack/backend/internal/model"
 	"github.com/WiredOnes/vibetrack/backend/internal/telemetry"
 )
@@ -12,7 +12,7 @@ import (
 // @PublicPointerInstance
 type Handler struct {
 	telemetry.Telemetry
-	controller health.Controller
+	controller logic.Controller
 }
 
 var _ api.StrictServerInterface = (*Handler)(nil)
@@ -20,7 +20,7 @@ var _ api.StrictServerInterface = (*Handler)(nil)
 func (h *Handler) CheckHealth(ctx context.Context, req api.CheckHealthRequestObject) (api.CheckHealthResponseObject, error) {
 	arg := checkHealthRequestToDTO(req)
 
-	res, err := h.controller.Check(ctx, arg)
+	res, err := h.controller.CheckHealth(ctx, arg)
 	if err != nil {
 		return api.CheckHealthdefaultJSONResponse{
 			Body:       errorFromModel(err),
@@ -32,10 +32,28 @@ func (h *Handler) CheckHealth(ctx context.Context, req api.CheckHealthRequestObj
 }
 
 func (h *Handler) GetRepositories(ctx context.Context, req api.GetRepositoriesRequestObject) (api.GetRepositoriesResponseObject, error) {
-	return api.GetRepositoriesdefaultJSONResponse{
-		Body:       errorFromModel(model.NewUnimplementedError()),
-		StatusCode: statusCodeFromModel(model.NewUnimplementedError()),
-	}, nil
+	token := bearerTokenFromContext(ctx)
+	if token == "" {
+		return api.GetRepositoriesdefaultJSONResponse{
+			Body:       errorFromModel(model.NewUnauthenticatedError()),
+			StatusCode: statusCodeFromModel(model.NewUnauthenticatedError()),
+		}, nil
+	}
+
+	res, err := h.controller.GetRepositories(ctx, logic.GetRepositoriesArg{Token: token})
+	if err != nil {
+		return api.GetRepositoriesdefaultJSONResponse{
+			Body:       errorFromModel(err),
+			StatusCode: statusCodeFromModel(err),
+		}, nil
+	}
+
+	repos := make(api.GetRepositories200JSONResponse, len(res.Repositories))
+	for i, r := range res.Repositories {
+		repos[i] = repositoryFromLogic(r)
+	}
+
+	return repos, nil
 }
 
 func (h *Handler) GetRepositoriesRepositoryID(ctx context.Context, req api.GetRepositoriesRepositoryIDRequestObject) (api.GetRepositoriesRepositoryIDResponseObject, error) {

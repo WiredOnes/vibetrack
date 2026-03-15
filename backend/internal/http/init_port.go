@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/benbjohnson/clock"
-	"github.com/go-chi/chi/v5"
-	"github.com/leshless/golibrary/graceful"
 	api "github.com/WiredOnes/vibetrack/backend/api/http/v1"
 	"github.com/WiredOnes/vibetrack/backend/internal/config"
 	"github.com/WiredOnes/vibetrack/backend/internal/environment"
 	"github.com/WiredOnes/vibetrack/backend/internal/telemetry"
+	"github.com/benbjohnson/clock"
+	"github.com/go-chi/chi/v5"
+	"github.com/leshless/golibrary/graceful"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -32,6 +32,7 @@ func InitPort(
 	middlewares := []api.StrictMiddlewareFunc{
 		telemetryMiddleware(tel, clock),
 		recoveryMiddleware(tel),
+		authMiddleware(tel),
 	}
 
 	chiRouter := chi.NewRouter()
