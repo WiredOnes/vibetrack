@@ -1,0 +1,112 @@
+service:
+  name: "cub"
+  environment: "development"
+
+logger:
+  development: true
+  stdout_only: true
+  output_file: "/dev/null"
+  
+  max_file_size_mb: 1
+  max_backups_amount: 1
+  max_file_age_days: 1
+  compression: false
+  
+  time_key: "timestamp"
+  level_key: "level"
+  name_key: ""
+  caller_key: ""
+  message_key: "message"
+  stacktrace_key: ""
+
+grpc:
+  host: "0.0.0.0"
+  port: 50051
+
+  enable_tls: false
+  
+  enable_health: true
+  enable_reflection: true
+  
+  keepalive_max_connection_idle: 5m
+  keepalive_max_connection_age: 30m
+  keepalive_max_connection_age_grace: 10s
+  keepalive_time: 2h
+  keepalive_timeout: 30s
+  
+  keepalive_min_time: 10s
+  keepalive_permit_without_stream: true 
+  
+  max_receive_message_size_mb: 16
+  max_send_message_size_mb: 16
+
+  timeout: 5m
+
+http:
+  host: "0.0.0.0"
+  port: 80
+
+  enable_tls: false
+
+  read_timeout: 5s
+  write_timeout: 5s
+  idle_timeout: 30s
+
+db:
+  host: "cub_postgres"
+  port: 5432
+
+  user: "user"
+  password: "password"
+  database: "cub"
+  ssl_mode: "disable"
+
+  migrations_table_name: "migrations"
+
+jobs:
+  - name: "update_health_status"
+    run_on_startup: true
+    period: 1m
+    timeout: 5s
+
+monitoring:
+  counters:
+    - name: "http_requests_total"
+      labels: ["method", "endpoint", "status_code"]
+    
+    - name: "grpc_calls_total"
+      labels: ["call", "status"]
+    
+    - name: "executed_jobs_total"
+      labels: ["job_name", "successful"]
+    
+    - name: "db_requests_total"
+      labels: ["successful"]
+
+  summaries:
+    - name: "http_request_duration_seconds"
+      labels: ["method", "endpoint"]
+      objectives:
+        0.5: 0.1
+        0.9: 0.05
+        0.99: 0.01
+      max_age: 10m
+      age_buckets: 3
+
+    - name: "grpc_call_duration_seconds"
+      labels: ["call"]
+      objectives:
+        0.5: 0.1
+        0.9: 0.05
+        0.99: 0.01
+      max_age: 10m
+      age_buckets: 3
+    
+    - name: "job_duration_seconds"
+      labels: ["job_name"]
+      objectives:
+        0.5: 0.1
+        0.9: 0.05
+        0.99: 0.01
+      max_age: 30m
+      age_buckets: 3

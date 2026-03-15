@@ -1,0 +1,3 @@
+CREATE TABLE objects (
+  id TEXT PRIMARY KEY
+);

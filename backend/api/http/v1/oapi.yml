@@ -1,0 +1,260 @@
+openapi: 3.0.0
+info:
+  title: GitHub Project Analyzer API
+  description: API для анализа GitHub репозиториев с помощью AI
+  version: 1.0.0
+servers:
+  - url: localhost
+    description: local environment
+
+components:
+  securitySchemes:
+    githubOAuth:
+      type: oauth2
+      description: GitHub OAuth 2.0
+      flows:
+        authorizationCode:
+          authorizationUrl: https://github.com/login/oauth/authorize
+          tokenUrl: https://github.com/login/oauth/access_token
+          scopes:
+            repo: Доступ к репозиториям
+            user: Доступ к профилю
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Human readable protected error message
+          example: "Internal server error"
+
+    RepositorySparsed:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1296269
+        name:
+          type: string
+          example: "hello-world"
+        full_name:
+          type: string
+          example: "octocat/hello-world"
+        description:
+          type: string
+          example: "My first repository on GitHub"
+        private:
+          type: boolean
+          example: false
+        default_branch:
+          type: string
+          example: "main"
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - full_name
+        - description
+        - private
+        - default_branch
+        - updated_at
+    
+    Repository:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1296269
+        name:
+          type: string
+          example: "hello-world"
+        full_name:
+          type: string
+          example: "octocat/hello-world"
+        description:
+          type: string
+          example: "My first repository on GitHub"
+        private:
+          type: boolean
+          example: false
+        default_branch:
+          type: string
+          example: "main"
+        ai_summary:
+          type: string
+        ai_suggestion:
+          type: string
+        ai_readme:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+        
+      required:
+        - id
+        - name
+        - full_name
+        - description
+        - private
+        - default_branch
+        - updated_at
+
+    Commit:
+      type: object
+      properties:
+        sha:
+          type: string
+          example: "c5b97d5ae6c19d5c5df71a34c7fbeeda2479ccbc"
+        message:
+          type: string
+          example: "Fix typo in README"
+        author_name:
+          type: string
+          example: "Octocat"
+        author_email:
+          type: string
+          example: "octocat@github.com"
+        author_avatar:
+          type: string
+          format: uri
+          example: "https://avatars.githubusercontent.com/u/12345"
+        date:
+          type: string
+          format: date-time
+        ai_summary:
+          $ref: "#/components/schemas/AICommitSummary"
+      required:
+        - sha
+        - message
+        - author_name
+        - date
+    
+    AICommitSummary:
+      type: object
+      properties:
+        summary:
+          type: string
+          description: "Краткое описание изменений"
+          example: "Добавлена поддержка авторизации через JWT"
+        files_changed:
+          type: array
+          items:
+            type: string
+          example: ["src/auth.js", "src/middleware.js"]
+        key_changes:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [ADDED, REMOVED, MODIFIED]
+                example: "ADDED"
+              description:
+                type: string
+                example: "Добавлена функция валидации токена"
+      required:
+        - summary
+        - files_changed
+        - key_changes
+
+
+paths:
+  /repositories:
+    get:
+      summary: Получить список репозиториев пользователя
+      tags: [Repositories]
+      parameters:
+      responses:
+        '200':
+          description: Список репозиториев
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Repository'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /repositories/{repositoryID}:
+    get:
+      summary: Получить информацию о конкретном репозитории
+      tags: [Repositories]
+      parameters:
+        - in: path
+          name: repositoryID
+          required: true
+          schema:
+            type: integer
+          description: Название репозитория
+      responses:
+        '200':
+          description: Информация о репозитории
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /repository/{repositoryID}/analyze:
+    post:
+      summary: Получить AI-анализ проекта
+      tags: [AI]
+      parameters:
+        - in: path
+          name: repositoryID
+          required: true
+          schema:
+            type: integer
+          description: Название репозитория
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /repository/{repositoryID}/{commitSHA}/analyze:
+    post:
+      summary: Получить AI-суммаризацию изменений в коммите
+      tags: [AI]
+      parameters:
+        - in: path
+          name: repositoryID
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: commitSHA
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: AI-суммаризация коммита
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AICommitSummary'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
