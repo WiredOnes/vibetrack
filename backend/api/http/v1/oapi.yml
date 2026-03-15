@@ -306,6 +306,12 @@ paths:
             type: integer
           description: Название репозитория
       responses:
+        '200':
+          description: AI-анализ репозитория
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AICommitSummary'
         default:
           description: Error
           content:
