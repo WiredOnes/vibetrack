@@ -135,9 +135,7 @@ func (h *Handler) PostRepositoryRepositoryIDCommitSHAAnalyze(ctx context.Context
 
 func (h *Handler) OAuthCallback(ctx context.Context, req api.OAuthCallbackRequestObject) (api.OAuthCallbackResponseObject, error) {
 	res, err := h.controller.ExchangeOAuthCode(ctx, logic.ExchangeOAuthCodeArg{
-		Code:         req.Params.Code,
-		ClientID:     req.Params.ClientId,
-		ClientSecret: req.Params.ClientSecret,
+		Code: req.Params.Code,
 	})
 	if err != nil {
 		return api.OAuthCallbackdefaultJSONResponse{

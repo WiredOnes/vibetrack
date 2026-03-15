@@ -290,9 +290,7 @@ func (c *controller) AnalyzeCommit(ctx context.Context, arg AnalyzeCommitArg) (A
 
 // @PublicValueInstance
 type ExchangeOAuthCodeArg struct {
-	Code         string
-	ClientID     string
-	ClientSecret string
+	Code string
 }
 
 // @PublicValueInstance
@@ -310,8 +308,8 @@ func (c *controller) ExchangeOAuthCode(ctx context.Context, arg ExchangeOAuthCod
 
 	client := &http.Client{Timeout: 15 * time.Second}
 	body := map[string]string{
-		"client_id":     arg.ClientID,
-		"client_secret": arg.ClientSecret,
+		"client_id":     c.environmentHolder.Environment().GithubClientID,
+		"client_secret": c.environmentHolder.Environment().GithubClientSecret,
 		"code":          arg.Code,
 	}
 	reqBody, err := json.Marshal(body)
