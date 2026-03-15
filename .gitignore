@@ -6,11 +6,6 @@
 !Dockerfile 
 !LICENSE
 
-# Go codegen
-*.gen.go
-*.pb.go
-.generators_cache
-
 # Sensitive files
 *.env
 !template.env
