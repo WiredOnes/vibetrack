@@ -221,6 +221,72 @@ func (c *controller) GetRepositories(ctx context.Context, arg GetRepositoriesArg
 	return GetRepositoriesRes{Repositories: repos}, nil
 }
 
+func (c *controller) AnalyzeRepository(ctx context.Context, arg AnalyzeRepositoryArg) (AnalyzeRepositoryRes, error) {
+	c.Logger.Info(ctx, "analyzing repository with AI")
+
+	if arg.Token == "" {
+		c.Logger.Warn(ctx, "missing GitHub token in request")
+		return AnalyzeRepositoryRes{}, model.NewUnauthenticatedError()
+	}
+
+	repoFullName, defaultBranch, err := c.getRepoFullNameAndBranch(ctx, arg.RepositoryID, arg.Token)
+	if err != nil {
+		return AnalyzeRepositoryRes{}, err
+	}
+
+	tree, err := c.getRepoTree(ctx, repoFullName, defaultBranch, arg.Token)
+	if err != nil {
+		return AnalyzeRepositoryRes{}, err
+	}
+
+	promptContent := analyzeRepositoryPrompt + "\n\n" + tree
+	resp, err := c.requestAI(ctx, promptContent)
+	if err != nil {
+		return AnalyzeRepositoryRes{}, err
+	}
+
+	analysis, err := parseAnalysisResponse(resp)
+	if err != nil {
+		c.Logger.Error(ctx, "failed to parse AI response", telemetry.Error(err))
+		return AnalyzeRepositoryRes{}, model.NewInternalError()
+	}
+
+	return analysis, nil
+}
+
+func (c *controller) AnalyzeCommit(ctx context.Context, arg AnalyzeCommitArg) (AnalyzeCommitRes, error) {
+	c.Logger.Info(ctx, "analyzing commit with AI", telemetry.Any("commit", arg.CommitSHA))
+
+	if arg.Token == "" {
+		c.Logger.Warn(ctx, "missing GitHub token in request")
+		return AnalyzeCommitRes{}, model.NewUnauthenticatedError()
+	}
+
+	repoFullName, _, err := c.getRepoFullNameAndBranch(ctx, arg.RepositoryID, arg.Token)
+	if err != nil {
+		return AnalyzeCommitRes{}, err
+	}
+
+	diff, err := c.getCommitDiff(ctx, repoFullName, arg.CommitSHA, arg.Token)
+	if err != nil {
+		return AnalyzeCommitRes{}, err
+	}
+
+	promptContent := analyzeCommitPrompt + "\n\n" + diff
+	resp, err := c.requestAI(ctx, promptContent)
+	if err != nil {
+		return AnalyzeCommitRes{}, err
+	}
+
+	analysis, err := parseAnalysisResponse(resp)
+	if err != nil {
+		c.Logger.Error(ctx, "failed to parse AI response", telemetry.Error(err))
+		return AnalyzeCommitRes{}, model.NewInternalError()
+	}
+
+	return analysis, nil
+}
+
 // @PublicValueInstance
 type ExchangeOAuthCodeArg struct {
 	Code string
@@ -241,8 +307,8 @@ func (c *controller) ExchangeOAuthCode(ctx context.Context, arg ExchangeOAuthCod
 
 	client := &http.Client{Timeout: 15 * time.Second}
 	body := map[string]string{
-		"client_id":     c.environmentHolder.Environment().GithubClientID,
-		"client_secret": c.environmentHolder.Environment().GithubClientSecret,
+		"client_id":     arg.ClientID,
+		"client_secret": arg.ClientSecret,
 		"code":          arg.Code,
 	}
 	reqBody, err := json.Marshal(body)

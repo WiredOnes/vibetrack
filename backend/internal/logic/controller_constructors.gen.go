@@ -9,12 +9,12 @@ Generated from source file: /home/leshless/vibetrack/backend/internal/logic/cont
 package logic
 
 import (
-	time "time"
-	db "github.com/WiredOnes/vibetrack/backend/internal/db"
-	telemetry "github.com/WiredOnes/vibetrack/backend/internal/telemetry"
 	environment "github.com/WiredOnes/vibetrack/backend/internal/environment"
-	model "github.com/WiredOnes/vibetrack/backend/internal/model"
 	state "github.com/WiredOnes/vibetrack/backend/internal/state"
+	db "github.com/WiredOnes/vibetrack/backend/internal/db"
+	model "github.com/WiredOnes/vibetrack/backend/internal/model"
+	time "time"
+	telemetry "github.com/WiredOnes/vibetrack/backend/internal/telemetry"
 )
 
 func NewGetRepositoriesArg(
@@ -30,6 +30,62 @@ func NewGetRepositoriesRes(
 ) GetRepositoriesRes {
 	return GetRepositoriesRes{
 		Repositories: repositories,
+	}
+}
+
+func NewAnalyzeRepositoryArg(
+	repositoryID int,
+	token string,
+) AnalyzeRepositoryArg {
+	return AnalyzeRepositoryArg{
+		RepositoryID: repositoryID,
+		Token: token,
+	}
+}
+
+func NewAnalyzeRepositoryRes(
+	summary string,
+	filesChanged []string,
+	keyChanges []AnalyzeKeyChange,
+) AnalyzeRepositoryRes {
+	return AnalyzeRepositoryRes{
+		Summary: summary,
+		FilesChanged: filesChanged,
+		KeyChanges: keyChanges,
+	}
+}
+
+func NewAnalyzeKeyChange(
+	type_ string,
+	description string,
+) AnalyzeKeyChange {
+	return AnalyzeKeyChange{
+		Type: type_,
+		Description: description,
+	}
+}
+
+func NewAnalyzeCommitArg(
+	repositoryID string,
+	commitSHA string,
+	token string,
+) AnalyzeCommitArg {
+	return AnalyzeCommitArg{
+		RepositoryID: repositoryID,
+		CommitSHA: commitSHA,
+		Token: token,
+	}
+}
+
+func NewAnalyzeCommitRes(
+	summary string,
+	filesChanged []string,
+	keyChanges []AnalyzeKeyChange,
+) AnalyzeCommitRes {
+	return AnalyzeCommitRes{
+		Summary: summary,
+		FilesChanged: filesChanged,
+		KeyChanges: keyChanges,
 	}
 }
 

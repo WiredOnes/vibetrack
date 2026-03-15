@@ -112,9 +112,7 @@ type Repository struct {
 
 // OAuthCallbackParams defines parameters for OAuthCallback.
 type OAuthCallbackParams struct {
-	Code         string `form:"code" json:"code"`
-	ClientId     string `form:"client_id" json:"client_id"`
-	ClientSecret string `form:"client_secret" json:"client_secret"`
+	Code string `form:"code" json:"code"`
 }
 
 // ServerInterface represents all server handlers.
@@ -222,36 +220,6 @@ func (siw *ServerInterfaceWrapper) OAuthCallback(w http.ResponseWriter, r *http.
 	err = runtime.BindQueryParameterWithOptions("form", true, true, "code", r.URL.Query(), &params.Code, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "code", Err: err})
-		return
-	}
-
-	// ------------- Required query parameter "client_id" -------------
-
-	if paramValue := r.URL.Query().Get("client_id"); paramValue != "" {
-
-	} else {
-		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "client_id"})
-		return
-	}
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "client_id", r.URL.Query(), &params.ClientId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "client_id", Err: err})
-		return
-	}
-
-	// ------------- Required query parameter "client_secret" -------------
-
-	if paramValue := r.URL.Query().Get("client_secret"); paramValue != "" {
-
-	} else {
-		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "client_secret"})
-		return
-	}
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "client_secret", r.URL.Query(), &params.ClientSecret, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "client_secret", Err: err})
 		return
 	}
 
@@ -643,6 +611,15 @@ type PostRepositoryRepositoryIDAnalyzeRequestObject struct {
 
 type PostRepositoryRepositoryIDAnalyzeResponseObject interface {
 	VisitPostRepositoryRepositoryIDAnalyzeResponse(w http.ResponseWriter) error
+}
+
+type PostRepositoryRepositoryIDAnalyze200JSONResponse AICommitSummary
+
+func (response PostRepositoryRepositoryIDAnalyze200JSONResponse) VisitPostRepositoryRepositoryIDAnalyzeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
 }
 
 type PostRepositoryRepositoryIDAnalyzedefaultJSONResponse struct {
