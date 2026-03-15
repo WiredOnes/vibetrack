@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/WiredOnes/vibetrack/backend/internal/db"
+	"github.com/WiredOnes/vibetrack/backend/internal/environment"
 	"github.com/WiredOnes/vibetrack/backend/internal/model"
 	"github.com/WiredOnes/vibetrack/backend/internal/state"
 	"github.com/WiredOnes/vibetrack/backend/internal/telemetry"
@@ -17,6 +19,7 @@ type Controller interface {
 	CheckHealth(ctx context.Context, arg CheckArg) (CheckRes, error)
 	UpdateHealthStatus(ctx context.Context, arg UpdateHealthStatusArg) (UpdateHealthStatusRes, error)
 	GetRepositories(ctx context.Context, arg GetRepositoriesArg) (GetRepositoriesRes, error)
+	ExchangeOAuthCode(ctx context.Context, arg ExchangeOAuthCodeArg) (ExchangeOAuthCodeRes, error)
 }
 
 // @PublicValueInstance
@@ -43,8 +46,9 @@ type Repository struct {
 // @PublicPointerInstance
 type controller struct {
 	telemetry.Telemetry
-	healthState state.HealthAdapter
-	pingDB      db.PingAdapter
+	environmentHolder environment.Holder
+	healthState       state.HealthAdapter
+	pingDB            db.PingAdapter
 }
 
 var _ Controller = (*controller)(nil)
@@ -58,12 +62,15 @@ type CheckRes struct {
 }
 
 func (c *controller) CheckHealth(ctx context.Context, arg CheckArg) (CheckRes, error) {
+	c.Logger.Info(ctx, "checking health status")
+
 	status, err := c.healthState.GetStatus(ctx)
 	if err != nil {
-		c.Logger.Error(ctx, "failed to get health status state", telemetry.Error(err))
+		c.Logger.Error(ctx, "failed to get health status from state", telemetry.Error(err))
 		return CheckRes{}, err
 	}
 
+	c.Logger.Info(ctx, "health check completed successfully", telemetry.Any("status", status))
 	return NewCheckRes(status), nil
 }
 
@@ -74,34 +81,48 @@ type UpdateHealthStatusArg struct{}
 type UpdateHealthStatusRes struct{}
 
 func (c *controller) UpdateHealthStatus(ctx context.Context, arg UpdateHealthStatusArg) (UpdateHealthStatusRes, error) {
+	c.Logger.Info(ctx, "updating health status")
+
 	status := model.HealthStatusServing
 
+	c.Logger.Debug(ctx, "pinging database to check health")
 	err := c.pingDB.Ping(ctx)
 	if err != nil {
-		c.Logger.Error(ctx, "failed to ping database", telemetry.Error(err))
+		c.Logger.Error(ctx, "database ping failed, setting status to not serving", telemetry.Error(err))
 		status = model.HealthStatusNotServing
+	} else {
+		c.Logger.Debug(ctx, "database ping successful")
 	}
 
 	err = c.healthState.SetStatus(ctx, status)
 	if err != nil {
-		c.Logger.Error(ctx, "failed to update health status state", telemetry.Error(err))
+		c.Logger.Error(ctx, "failed to update health status in state", telemetry.Error(err))
 		return NewUpdateHealthStatusRes(), err
 	}
 
+	c.Logger.Info(ctx, "health status updated successfully", telemetry.Any("status", status))
 	return NewUpdateHealthStatusRes(), nil
 }
 
 func (c *controller) GetRepositories(ctx context.Context, arg GetRepositoriesArg) (GetRepositoriesRes, error) {
+	c.Logger.Info(ctx, "fetching user repositories from GitHub")
+
 	if arg.Token == "" {
+		c.Logger.Warn(ctx, "missing GitHub token in request")
 		return GetRepositoriesRes{}, model.NewUnauthenticatedError()
 	}
 
 	client := &http.Client{Timeout: 15 * time.Second}
 	var repos []Repository
-	for page := 1; ; page++ {
+	page := 1
+
+	for {
 		url := fmt.Sprintf("https://api.github.com/user/repos?per_page=100&page=%d", page)
+		c.Logger.Debug(ctx, "fetching repositories page", telemetry.Any("page", page), telemetry.Any("url", url))
+
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
+			c.Logger.Error(ctx, "failed to create HTTP request for GitHub API", telemetry.Error(err))
 			return GetRepositoriesRes{}, model.NewInternalError()
 		}
 		req.Header.Set("Authorization", "Bearer "+arg.Token)
@@ -109,14 +130,17 @@ func (c *controller) GetRepositories(ctx context.Context, arg GetRepositoriesArg
 
 		resp, err := client.Do(req)
 		if err != nil {
+			c.Logger.Error(ctx, "failed to call GitHub API", telemetry.Error(err))
 			return GetRepositoriesRes{}, model.NewInternalError()
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			c.Logger.Warn(ctx, "GitHub API returned unauthorized/forbidden", telemetry.Any("status_code", resp.StatusCode))
 			return GetRepositoriesRes{}, model.NewUnauthenticatedError()
 		}
 		if resp.StatusCode >= 400 {
+			c.Logger.Error(ctx, "GitHub API returned error", telemetry.Any("status_code", resp.StatusCode))
 			return GetRepositoriesRes{}, model.NewInternalError()
 		}
 
@@ -130,8 +154,11 @@ func (c *controller) GetRepositories(ctx context.Context, arg GetRepositoriesArg
 			UpdatedAt     time.Time `json:"updated_at"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&pageRepos); err != nil {
+			c.Logger.Error(ctx, "failed to decode GitHub API response", telemetry.Error(err))
 			return GetRepositoriesRes{}, model.NewInternalError()
 		}
+
+		c.Logger.Debug(ctx, "received repositories from page", telemetry.Any("page", page), telemetry.Any("count", len(pageRepos)))
 
 		if len(pageRepos) == 0 {
 			break
@@ -149,11 +176,90 @@ func (c *controller) GetRepositories(ctx context.Context, arg GetRepositoriesArg
 			})
 		}
 
-		// GitHub paginates by 100 items; stop if less than the page size.
 		if len(pageRepos) < 100 {
 			break
 		}
+		page++
 	}
 
+	c.Logger.Info(ctx, "successfully fetched repositories", telemetry.Any("total_count", len(repos)))
 	return GetRepositoriesRes{Repositories: repos}, nil
+}
+
+// @PublicValueInstance
+type ExchangeOAuthCodeArg struct {
+	Code string
+}
+
+// @PublicValueInstance
+type ExchangeOAuthCodeRes struct {
+	Token string
+}
+
+func (c *controller) ExchangeOAuthCode(ctx context.Context, arg ExchangeOAuthCodeArg) (ExchangeOAuthCodeRes, error) {
+	c.Logger.Info(ctx, "exchanging OAuth code for access token")
+
+	if arg.Code == "" {
+		c.Logger.Warn(ctx, "missing required parameters for OAuth exchange", telemetry.Any("has_code", arg.Code != ""))
+		return ExchangeOAuthCodeRes{}, model.NewBadRequestError()
+	}
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	body := map[string]string{
+		"client_id":     c.environmentHolder.Environment().GithubClientID,
+		"client_secret": c.environmentHolder.Environment().GithubClientSecret,
+		"code":          arg.Code,
+	}
+	reqBody, err := json.Marshal(body)
+	if err != nil {
+		c.Logger.Error(ctx, "failed to marshal request body for OAuth exchange", telemetry.Error(err))
+		return ExchangeOAuthCodeRes{}, model.NewInternalError()
+	}
+
+	c.Logger.Debug(ctx, "sending POST request to GitHub OAuth endpoint")
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://github.com/login/oauth/access_token", bytes.NewReader(reqBody))
+	if err != nil {
+		c.Logger.Error(ctx, "failed to create HTTP request for OAuth exchange", telemetry.Error(err))
+		return ExchangeOAuthCodeRes{}, model.NewInternalError()
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		c.Logger.Error(ctx, "failed to call GitHub OAuth endpoint", telemetry.Error(err))
+		return ExchangeOAuthCodeRes{}, model.NewInternalError()
+	}
+	defer resp.Body.Close()
+
+	c.Logger.Debug(ctx, "received response from GitHub OAuth", telemetry.Any("status_code", resp.StatusCode))
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		c.Logger.Warn(ctx, "GitHub OAuth returned unauthorized/forbidden", telemetry.Any("status_code", resp.StatusCode))
+		return ExchangeOAuthCodeRes{}, model.NewUnauthenticatedError()
+	}
+	if resp.StatusCode >= 400 {
+		c.Logger.Error(ctx, "GitHub OAuth returned error", telemetry.Any("status_code", resp.StatusCode))
+		return ExchangeOAuthCodeRes{}, model.NewInternalError()
+	}
+
+	var data struct {
+		AccessToken string `json:"access_token"`
+		TokenType   string `json:"token_type"`
+		Scope       string `json:"scope"`
+		Error       string `json:"error"`
+		ErrorDesc   string `json:"error_description"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		c.Logger.Error(ctx, "failed to decode GitHub OAuth response", telemetry.Error(err))
+		return ExchangeOAuthCodeRes{}, model.NewInternalError()
+	}
+
+	if data.Error != "" {
+		c.Logger.Warn(ctx, "GitHub OAuth returned error in response", telemetry.Any("error", data.Error), telemetry.Any("error_description", data.ErrorDesc))
+		return ExchangeOAuthCodeRes{}, model.NewUnauthenticatedError()
+	}
+
+	c.Logger.Info(ctx, "successfully exchanged OAuth code for access token")
+	return ExchangeOAuthCodeRes{Token: data.AccessToken}, nil
 }

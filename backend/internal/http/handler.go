@@ -76,3 +76,17 @@ func (h *Handler) PostRepositoryRepositoryIDCommitSHAAnalyze(ctx context.Context
 		StatusCode: statusCodeFromModel(model.NewUnimplementedError()),
 	}, nil
 }
+
+func (h *Handler) OAuthCallback(ctx context.Context, req api.OAuthCallbackRequestObject) (api.OAuthCallbackResponseObject, error) {
+	res, err := h.controller.ExchangeOAuthCode(ctx, logic.ExchangeOAuthCodeArg{
+		Code: req.Params.Code,
+	})
+	if err != nil {
+		return api.OAuthCallbackdefaultJSONResponse{
+			Body:       errorFromModel(err),
+			StatusCode: statusCodeFromModel(err),
+		}, nil
+	}
+
+	return api.OAuthCallback200JSONResponse{Token: res.Token}, nil
+}

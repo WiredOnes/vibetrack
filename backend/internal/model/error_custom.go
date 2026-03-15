@@ -21,3 +21,25 @@ func (e unauthenticatedError) Message() string {
 func (e unauthenticatedError) Code() ErrorCode {
 	return ErrorCodeUnauthenticated
 }
+
+// badRequestError represents an error caused by invalid request parameters.
+type badRequestError struct{}
+
+// NewBadRequestError creates new badRequestError.
+func NewBadRequestError() Error {
+	return badRequestError{}
+}
+
+var _ Error = badRequestError{}
+
+func (e badRequestError) Error() string {
+	return "bad_request"
+}
+
+func (e badRequestError) Message() string {
+	return "Bad request"
+}
+
+func (e badRequestError) Code() ErrorCode {
+	return ErrorCodeBadRequest
+}

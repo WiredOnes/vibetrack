@@ -45,8 +45,8 @@ func (rw *responseWriter) WriteHeader(code int) {
 func authMiddleware(tel telemetry.Telemetry) api.StrictMiddlewareFunc {
 	return func(handler nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
 		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, req any) (any, error) {
-			// Allow unauthenticated health check
-			if operationID == "CheckHealth" {
+			// Allow unauthenticated health check and oauth callback
+			if operationID == "CheckHealth" || operationID == "OAuthCallback" {
 				return handler(ctx, w, r, req)
 			}
 
