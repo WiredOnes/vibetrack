@@ -6,9 +6,9 @@ RUN go mod download
 
 COPY ./ ./
 RUN go generate .
-RUN CGO_ENABLED=0 go build -o /cub ./cub/cmd/cub
-RUN chmod +x /cub
+RUN CGO_ENABLED=0 go build -o /backend ./cmd/backend
+RUN chmod +x /backend
 
 FROM alpine:3.21
-COPY --from=builder /cub ./cub
-ENTRYPOINT ["./cub"]
+COPY --from=builder /backend ./backend
+ENTRYPOINT ["./backend"]

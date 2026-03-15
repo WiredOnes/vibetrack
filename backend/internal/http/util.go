@@ -3,8 +3,8 @@ package http
 import (
 	"net/http"
 
-	api "github.com/leshless/pet/cub/api/http/v1"
-	"github.com/leshless/pet/cub/internal/model"
+	api "github.com/WiredOnes/vibetrack/backend/api/http/v1"
+	"github.com/WiredOnes/vibetrack/backend/internal/model"
 )
 
 var statusFromModel = map[model.ErrorCode]int{

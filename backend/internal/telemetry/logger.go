@@ -4,9 +4,9 @@ import (
 	"context"
 	"os"
 
+	"github.com/WiredOnes/vibetrack/backend/internal/config"
+	"github.com/WiredOnes/vibetrack/backend/internal/environment"
 	"github.com/leshless/golibrary/graceful"
-	"github.com/leshless/pet/cub/internal/config"
-	"github.com/leshless/pet/cub/internal/environment"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/lumberjack.v2"
@@ -110,7 +110,9 @@ func InitLogger(
 
 	zapLogger := zap.New(core, zap.Fields(labelsToZap(baseLabels)...))
 
-	logger := newLogger(zapLogger)
+	logger := &logger{
+		zapLogger: zapLogger,
+	}
 
 	logger.Info(context.Background(), "logger successfully initialized")
 

@@ -6,7 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/leshless/pet/cub/internal/telemetry"
+	"github.com/WiredOnes/vibetrack/backend/internal/telemetry"
 )
 
 // Client is a general handy wrapper around pgx DB conection

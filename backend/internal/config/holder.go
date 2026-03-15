@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	configFilePath = "etc/cub/config.yml"
+	configFilePath = "etc/backend/config.yml"
 )
 
 type Holder interface {

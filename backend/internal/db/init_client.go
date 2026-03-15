@@ -10,9 +10,9 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgx/v5"
 	"github.com/leshless/golibrary/graceful"
-	"github.com/leshless/pet/cub/internal/config"
-	"github.com/leshless/pet/cub/internal/environment"
-	"github.com/leshless/pet/cub/internal/telemetry"
+	"github.com/WiredOnes/vibetrack/backend/internal/config"
+	"github.com/WiredOnes/vibetrack/backend/internal/environment"
+	"github.com/WiredOnes/vibetrack/backend/internal/telemetry"
 )
 
 //go:embed migrations/*.sql

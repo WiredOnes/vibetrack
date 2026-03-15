@@ -1,6 +1,6 @@
 package main
 
-import "github.com/leshless/pet/cub/internal/app"
+import "github.com/WiredOnes/vibetrack/backend/internal/app"
 
 func main() {
 	app.Run()

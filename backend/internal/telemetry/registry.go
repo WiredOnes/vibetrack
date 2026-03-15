@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/leshless/pet/cub/internal/config"
-	"github.com/leshless/pet/cub/internal/environment"
+	"github.com/WiredOnes/vibetrack/backend/internal/config"
+	"github.com/WiredOnes/vibetrack/backend/internal/environment"
 	"github.com/prometheus/client_golang/prometheus"
 )
 

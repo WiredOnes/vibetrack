@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/leshless/pet/cub/internal/model"
+	"github.com/WiredOnes/vibetrack/backend/internal/model"
 )
 
 type HealthAdapter interface {

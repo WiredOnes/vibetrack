@@ -1,9 +1,9 @@
 package http
 
 import (
-	api "github.com/leshless/pet/cub/api/http/v1"
-	"github.com/leshless/pet/cub/internal/logic/health"
-	"github.com/leshless/pet/cub/internal/model"
+	api "github.com/WiredOnes/vibetrack/backend/api/http/v1"
+	"github.com/WiredOnes/vibetrack/backend/internal/logic/health"
+	"github.com/WiredOnes/vibetrack/backend/internal/model"
 )
 
 var healthStatusFromModel = map[model.HealthStatus]api.HealthStatus{

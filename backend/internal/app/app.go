@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/leshless/pet/cub/internal/telemetry"
+	"github.com/WiredOnes/vibetrack/backend/internal/telemetry"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -27,13 +27,7 @@ func (app *App) Run() error {
 	var eg errgroup.Group
 
 	eg.Go(func() error {
-		return app.GRPC.Run(ctx)
-	})
-	eg.Go(func() error {
 		return app.HTTP.Run(ctx)
-	})
-	eg.Go(func() error {
-		return app.Job.Run(ctx)
 	})
 
 	err := eg.Wait()

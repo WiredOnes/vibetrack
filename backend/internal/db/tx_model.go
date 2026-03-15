@@ -2,7 +2,7 @@ package db
 
 import (
 	"github.com/jackc/pgx/v5"
-	"github.com/leshless/pet/cub/internal/model"
+	"github.com/WiredOnes/vibetrack/backend/internal/model"
 )
 
 var txIsolationLevelFromModel = map[model.TxIsolationLevel]pgx.TxIsoLevel{

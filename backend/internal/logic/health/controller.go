@@ -3,10 +3,10 @@ package health
 import (
 	"context"
 
-	"github.com/leshless/pet/cub/internal/db"
-	"github.com/leshless/pet/cub/internal/model"
-	"github.com/leshless/pet/cub/internal/state"
-	"github.com/leshless/pet/cub/internal/telemetry"
+	"github.com/WiredOnes/vibetrack/backend/internal/db"
+	"github.com/WiredOnes/vibetrack/backend/internal/model"
+	"github.com/WiredOnes/vibetrack/backend/internal/state"
+	"github.com/WiredOnes/vibetrack/backend/internal/telemetry"
 )
 
 type Controller interface {

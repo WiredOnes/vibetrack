@@ -1,0 +1,52 @@
+{
+    "ignore_dir_patterns": [
+        ".git",
+        ".vscode",
+        ".idea"
+    ],
+    "ignore_file_patterns": [
+        ".gitignore",
+        "*.gen.go",
+        "*.pb.go",
+        "*_test.go",
+        "main.go",
+        "go.mod",
+        "go.sum",
+        "LICENSE",
+        "README.md",
+        "Dockerfile",
+        "Makefile"
+    ],
+    "generators": [
+        {
+            "name": "constructor",
+            "file_patterns": ["*.go"],
+            "command": "go run github.com/leshless/golibrary/constructor_generator"
+        },
+        {
+            "name": "enum",
+            "file_patterns": ["*.go"],
+            "command": "go run github.com/leshless/golibrary/enum_generator"
+        },
+        {
+            "name": "error",
+            "file_patterns": ["*.go"],
+            "command": "go run github.com/leshless/golibrary/error_generator"
+        },
+        {
+            "name": "sqlc",
+            "file_patterns": ["schema.sql", "queries.sql", "sqlc.yml"],
+            "command": "go run github.com/sqlc-dev/sqlc/cmd/sqlc generate"
+        },
+        {
+            "name": "oapi",
+            "file_patterns": ["oapi.yml", "oapi-codegen.yml"],
+            "command": "go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen --config oapi-codegen.yml oapi.yml"
+        },
+        {
+            "name": "buf",
+            "file_patterns": ["*.prot", "buf.gen.yaml"],
+            "command": "go run github.com/bufbuild/buf/cmd/buf generate"
+        }
+    ]
+}

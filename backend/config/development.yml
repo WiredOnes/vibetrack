@@ -1,5 +1,5 @@
 service:
-  name: "cub"
+  name: "backend"
   environment: "development"
 
 logger:
@@ -53,12 +53,12 @@ http:
   idle_timeout: 30s
 
 db:
-  host: "cub_postgres"
+  host: "postgres"
   port: 5432
 
   user: "user"
   password: "password"
-  database: "cub"
+  database: "db"
   ssl_mode: "disable"
 
   migrations_table_name: "migrations"

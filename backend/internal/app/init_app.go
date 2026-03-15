@@ -5,23 +5,19 @@ import (
 	"fmt"
 	"io/fs"
 
+	httpapi "github.com/WiredOnes/vibetrack/backend/api/http/v1"
+	"github.com/WiredOnes/vibetrack/backend/internal/config"
+	"github.com/WiredOnes/vibetrack/backend/internal/db"
+	"github.com/WiredOnes/vibetrack/backend/internal/environment"
+	"github.com/WiredOnes/vibetrack/backend/internal/http"
+	"github.com/WiredOnes/vibetrack/backend/internal/logic/health"
+	"github.com/WiredOnes/vibetrack/backend/internal/state"
+	"github.com/WiredOnes/vibetrack/backend/internal/telemetry"
 	"github.com/benbjohnson/clock"
 	"github.com/leshless/golibrary/graceful"
 	"github.com/leshless/golibrary/interrupt"
 	"github.com/leshless/golibrary/stupid"
-	cubpb "github.com/leshless/pet/cub/api/grpc/v1"
-	httpapi "github.com/leshless/pet/cub/api/http/v1"
-	"github.com/leshless/pet/cub/internal/config"
-	"github.com/leshless/pet/cub/internal/db"
-	"github.com/leshless/pet/cub/internal/environment"
-	"github.com/leshless/pet/cub/internal/grpc"
-	"github.com/leshless/pet/cub/internal/http"
-	"github.com/leshless/pet/cub/internal/job"
-	"github.com/leshless/pet/cub/internal/logic/health"
-	"github.com/leshless/pet/cub/internal/state"
-	"github.com/leshless/pet/cub/internal/telemetry"
 	"go.uber.org/dig"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func InitApp(primitives Primitives) (*App, error) {
@@ -67,23 +63,12 @@ func InitApp(primitives Primitives) (*App, error) {
 	// Handlers
 	c.Provide(NewHandlers)
 
-	// GRPC Handlers
-	c.Provide(grpc.NewHealthHandler, dig.As(new(healthpb.HealthServer)))
-	c.Provide(stupid.Reflect(cubpb.UnimplementedPingServer{}))
-	c.Provide(grpc.NewPingHandler, dig.As(new(cubpb.PingServer)))
-
 	// HTTP Handlers
-	c.Provide(http.NewHandlers, dig.As(new(httpapi.StrictServerInterface)))
-	c.Provide(http.NewHealthHandler)
-
-	// Jobs
-	c.Provide(job.NewUpdateHealthStatus, dig.As(new(job.UpdateHealthStatus)))
+	c.Provide(http.NewHandler, dig.As(new(httpapi.StrictServerInterface)))
 
 	// Ports
 	c.Provide(NewPorts)
-	c.Provide(grpc.InitPort, dig.As(new(grpc.Port)))
 	c.Provide(http.InitPort, dig.As(new(http.Port)))
-	c.Provide(job.InitPort, dig.As(new(job.Port)))
 
 	// App
 	c.Provide(NewApp)

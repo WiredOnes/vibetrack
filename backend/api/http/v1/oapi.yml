@@ -7,8 +7,16 @@ servers:
   - url: localhost
     description: local environment
 
+security:
+  - bearerAuth: []
+
 components:
   securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: "GitHub token"
+      description: "Bearer token from GitHub (passed by frontend)"
     githubOAuth:
       type: oauth2
       description: GitHub OAuth 2.0
@@ -30,6 +38,23 @@ components:
           type: string
           description: Human readable protected error message
           example: "Internal server error"
+
+    HealthStatus:
+      type: string
+      enum:
+        - UNKNOWN
+        - SERVING
+        - NOT_SERVING
+      example: SERVING
+      description: Service health status
+
+    CheckHealthResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
 
     RepositorySparsed:
       type: object
@@ -165,10 +190,32 @@ components:
 
 
 paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Basic service healthcheck
+      description: |
+      operationId: CheckHealth
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+               $ref: "#/components/schemas/CheckHealthResponse"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /repositories:
     get:
       summary: Получить список репозиториев пользователя
       tags: [Repositories]
+      operationId: GetRepositories
       parameters:
       responses:
         '200':
@@ -190,6 +237,7 @@ paths:
     get:
       summary: Получить информацию о конкретном репозитории
       tags: [Repositories]
+      operationId: GetRepositoriesRepositoryID
       parameters:
         - in: path
           name: repositoryID
@@ -215,6 +263,7 @@ paths:
     post:
       summary: Получить AI-анализ проекта
       tags: [AI]
+      operationId: PostRepositoryRepositoryIDAnalyze
       parameters:
         - in: path
           name: repositoryID
@@ -234,6 +283,7 @@ paths:
     post:
       summary: Получить AI-суммаризацию изменений в коммите
       tags: [AI]
+      operationId: PostRepositoryRepositoryIDCommitSHAAnalyze
       parameters:
         - in: path
           name: repositoryID

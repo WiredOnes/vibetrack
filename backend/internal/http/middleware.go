@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/benbjohnson/clock"
-	api "github.com/leshless/pet/cub/api/http/v1"
-	"github.com/leshless/pet/cub/internal/telemetry"
+	api "github.com/WiredOnes/vibetrack/backend/api/http/v1"
+	"github.com/WiredOnes/vibetrack/backend/internal/telemetry"
 	"github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 )
 

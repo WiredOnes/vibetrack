@@ -5,16 +5,8 @@ import (
 	"errors"
 	"net/http"
 
-	api "github.com/leshless/pet/cub/api/http/v1"
-	"github.com/leshless/pet/cub/internal/telemetry"
+	"github.com/WiredOnes/vibetrack/backend/internal/telemetry"
 )
-
-// @PublicValueInstance
-type handlers struct {
-	*HealthHandler
-}
-
-var _ api.StrictServerInterface = (*handlers)(nil)
 
 type Port interface {
 	Run(ctx context.Context) error
